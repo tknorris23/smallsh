@@ -12,9 +12,19 @@ void shexit()
 
 
 //"cd" built-in command function
-void shcd()
+void shcd(char* cwd, char* pathname, const char* PATH)
 {
     printf("cd called!\n");
+    if (strcmp("", pathname) == 0)
+    {
+        strcpy(cwd, PATH);
+    }
+    else
+    {
+        strcpy(cwd, pathname);
+    }
+    printf("cwd is now: %s\n", cwd);
+    chdir(cwd);
 }
 
 //"status" built-in command function
@@ -25,6 +35,15 @@ void shstatus()
 
 main()
 {
+    //set working directory
+    const char *PATH = getenv("PATH");
+    printf("PATH gotten is: %s\n", PATH);
+    char* cwd;
+    char* buf;
+    size_t size;
+    size = 1024;
+    cwd = getcwd(buf, size);
+    printf("cwd gotten is: %s\n", cwd);
     int end = 0;
     int i;
     //while loop for shell prompt
@@ -62,20 +81,31 @@ main()
 
 
         //BUILT-IN COMMANDS
-        //check for exit!
+        //check for exit
         if (strcmp(command[0], "exit") == 0)
         {
             shexit();
         }
         //check for cd
-        if (strcmp(input, "cd") == 0)
+        if (strcmp(command[0], "cd") == 0)
         {
-            shcd();
+            char* pth;
+            pth = (char *) malloc(sizeof(command[1]));
+            strcpy(pth, command[1]);
+            shcd(cwd, pth, PATH);
         }
         //check for status
-        if (strcmp(input, "status") == 0)
+        if (strcmp(command[0], "status") == 0)
         {
+            
             shstatus();
+        }
+
+
+        //reset command array
+        for(i = 0; i < 518; i++)
+        {
+            strcpy(command[i], "");
         }
     }
 }
