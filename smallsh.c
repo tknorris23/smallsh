@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
+#include <errno.h>
 
 //"exit" built-in command function
 void shexit()
@@ -13,42 +14,66 @@ void shexit()
 
 
 //"cd" built-in command function
-void shcd(char* cwd, char* pathname, const char* PATH)
+void shcd(char** cwd, char* pathname, const char* PATH)
 {
+    //notes 2/21/2020
+    //last thing to do hopefully is add support for multiple slashes for relative paths
+    //1st idea is try to add it to cwd and check if it exists
+    // if so go ahead and switch
+    // actually probably a better idea than using readdir huh
+    //fuck me lmao
+    printf("cd called!\n");
     int check = 0;
     DIR *dirp;
-    dirp = opendir(cwd);
+    dirp = opendir(*cwd);
+    //
     struct dirent *dp;
     char* dirname;
     //check if given pathname exists in cwd
-    while ((dp = readdir(dirp)) != NULL)
+    printf("about to enter loop\n");
+    if (dirp)
     {
+        while ((dp = readdir(dirp)) != NULL)
+    {
+        printf("loop entered\n");
         dirname = (char *)malloc(sizeof(dp->d_name));
         strcpy(dirname, dp->d_name);
         printf("name from directory: %s\n", dp->d_name);
 
-        if (strcmp(pathname, dirname) == 0)
+        //check for named directory matches
+        if (strcmp(pathname, dirname) == 0 && strcmp(".", pathname) != 0 && strcmp("..", pathname) != 0)
         {
-            strcat(cwd, "/");
-            strcat(cwd, pathname);
+            printf("relative path found\n");
+            strcat(*cwd, "/");
+            strcat(*cwd, pathname);
             check = 1;
         }
         strcpy(dirname, "");
     }
     closedir(dirp);
-    printf("cd called!\n");
+    }
+    else if (ENOENT == errno)
+    {
+        printf("Warning: Previous working directory did not exist.\n");
+    }
+    
+    
     if (strcmp("", pathname) == 0 && check == 0)
     {
-        cwd = (char *)malloc(sizeof(PATH));
-        strcpy(cwd, PATH);
+        *cwd = (char *)malloc(sizeof(PATH));
+        strcpy(*cwd, PATH);
     }
-    else if (check == 0)
+    else if (strcmp("..", pathname) == 0 && check == 0)
     {
-        cwd = (char *)malloc(sizeof(pathname));
-        strcpy(cwd, pathname);
+        //something
     }
-    printf("cwd is now: %s\n", cwd);
-    chdir(cwd);
+    else if (strcmp(".", pathname) != 0 && check == 0)
+    {
+        *cwd = (char *)malloc(sizeof(pathname));
+        strcpy(*cwd, pathname);
+    }
+    printf("cwd is now: %s\n", *cwd);
+    chdir(*cwd);
 }
 
 //"status" built-in command function
@@ -60,7 +85,7 @@ void shstatus()
 main()
 {
     //set working directory
-    const char *PATH = getenv("PATH");
+    const char *PATH = getenv("HOME");
     printf("PATH gotten is: %s\n", PATH);
     char* cwd;
     char* buf;
@@ -116,7 +141,7 @@ main()
             char* pth;
             pth = (char *) malloc(sizeof(command[1]));
             strcpy(pth, command[1]);
-            shcd(cwd, pth, PATH);
+            shcd(&cwd, pth, PATH);
         }
         //check for status
         if (strcmp(command[0], "status") == 0)
