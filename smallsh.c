@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <dirent.h>
 
 //"exit" built-in command function
 void shexit()
@@ -14,13 +15,36 @@ void shexit()
 //"cd" built-in command function
 void shcd(char* cwd, char* pathname, const char* PATH)
 {
-    printf("cd called!\n");
-    if (strcmp("", pathname) == 0)
+    int check = 0;
+    DIR *dirp;
+    dirp = opendir(cwd);
+    struct dirent *dp;
+    char* dirname;
+    //check if given pathname exists in cwd
+    while ((dp = readdir(dirp)) != NULL)
     {
+        dirname = (char *)malloc(sizeof(dp->d_name));
+        strcpy(dirname, dp->d_name);
+        printf("name from directory: %s\n", dp->d_name);
+
+        if (strcmp(pathname, dirname) == 0)
+        {
+            strcat(cwd, "/");
+            strcat(cwd, pathname);
+            check = 1;
+        }
+        strcpy(dirname, "");
+    }
+    closedir(dirp);
+    printf("cd called!\n");
+    if (strcmp("", pathname) == 0 && check == 0)
+    {
+        cwd = (char *)malloc(sizeof(PATH));
         strcpy(cwd, PATH);
     }
-    else
+    else if (check == 0)
     {
+        cwd = (char *)malloc(sizeof(pathname));
         strcpy(cwd, pathname);
     }
     printf("cwd is now: %s\n", cwd);
