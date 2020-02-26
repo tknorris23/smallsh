@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <fcntl.h>
 
 //"exit" built-in command function
@@ -48,6 +49,9 @@ main()
     argc1 = 0;
     argc2 = 0;
     char *p;
+    int bgPID[50];
+    int bgnum = 0;
+    int amper_index = -1;
 
     //pseudo bools for redirection info
     int passin, passout, bac;
@@ -70,6 +74,8 @@ main()
     //while loop for shell prompt
     while(end == 0)
     {
+        //printf("the loop begins!\n");
+        //make sure command arrays are empty with NULLS
         for(i = 0; i < 518; i++)
         {
             command[i] = NULL;
@@ -77,7 +83,29 @@ main()
             command2[i] = NULL;
             //memset(command2[i], '\0', sizeof(command2[i]));
         }
-        //THE PROMPT
+        //check for terminated children
+        int tempPID;
+        tempPID = waitpid(-1, &childExitMethod, WNOHANG);
+        if (tempPID != 0 && tempPID != -1)
+        {
+            printf("Child process returned with PID: [%d]\n", tempPID);
+            if (WIFEXITED(childExitMethod) != 0)
+            {
+                printf("Child process exited with value of [%d]\n", WEXITSTATUS(childExitMethod));
+            }
+            else if (WIFSIGNALED(childExitMethod) != 0)
+            {
+                printf("Child process killed by signal [%d]\n", WTERMSIG(childExitMethod));
+            }
+        }
+
+
+
+
+
+
+
+        // THE PROMPT //
         //flush stdout before printing prompt
         fflush(stdout);
 
@@ -135,9 +163,9 @@ main()
                 index_out = i;
             }
             //check for ampersand command
-            if(strcmp(output_tok, "&") ==0)
+            if(strcmp(output_tok, "&") == 0)
             {
-                bac = 1;
+                amper_index = i;
             }
             //check for $$ to expand into pid
             if(strcmp(output_tok, "$$") == 0)
@@ -164,6 +192,14 @@ main()
             //increment looping vars
             i++;
             j++;
+        }
+        //check if a caught ampersand was the last command
+        //printf("amper_index: [%d]\n", amper_index);
+        //printf("i: [%d]\n", i);
+        if (amper_index == i - 1)
+        {
+            bac = 1;
+            //printf("BACKGROUND PROCESS ENGAGED\n");
         }
         //reset vars
         i = 0;
@@ -216,15 +252,20 @@ main()
         {
             // do nothing
         }
+
+
+
+
+
+
+
+
+
+
         //exec() commands
         else
         {
             //printf("command2[0] is: %s\n", command2[0]);
-            //check for background execution
-            if(bac)
-            {
-                //this is gonna be handled differently when I work on background commands
-            }
             //check for redirects
             if(passin)
             {
@@ -254,52 +295,158 @@ main()
                 close(fdout);
                 result = 0;
             }
+
+
             //fork process
-            spawnPid = fork();
-            switch (spawnPid)
+            if (bac)
             {
-                case -1: { perror("Fork failed!\n"); exit(1); break;} // error case
-                case 0: {
-                    //child
-                    //printf("[%s]\n", cwd);
-                    //printf("Child process running...\n");
-                    //execute command
-                    execvp(command2[0], command2);
-                    //printf("exec failed: %s\n", strerror(errno));
-                    perror("CHILD: exec failed.\n");
-                    exit(2); break;
+                //redirect stdin and stdout to /dev/null if not already set
+                if(!passin)
+                {
+                    int fdin;
+                    int result;
+                    //save stdin's file descriptor for later
+                    saved_stdin = dup(0);
+                    //open devnull
+                    fdin = open("/dev/null", O_RDONLY);
+                    //set stdin to send to devnull
+                    result = dup2(fdin, 0);
+                    close(fdin);
+                    result = 0;
                 }
-                default: {
-                    //parent
-                    //printf("child(%d) spawned, waiting...\n", spawnPid);
-                    //wait for child to exit
-                    pid_t actualPid = waitpid(spawnPid, &childExitMethod, 0);
-                    //check exit method for child, and set vars as appropriate
-                    if (WIFEXITED(childExitMethod) != 0)
-                    {
-                        exitStatus = WEXITSTATUS(childExitMethod);
-                        exitORsig = 0;
+                if(!passout)
+                {
+                    int fdout;
+                    int result;
+                    //save stdout's file descriptor for later
+                    saved_stdout = dup(1);
+                    //open devnull
+                    fdout = open("/dev/null", O_WRONLY);
+                    //set stdout to send to devnull
+                    result = dup2(fdout, 1);
+                    close(fdout);
+                    result = 0;
+                }
+                spawnPid = fork();
+                //grab PID and put in bg process array
+                bgPID[bgnum] = spawnPid;
+                bgnum++;
+                switch (spawnPid)
+                {
+                    case -1: { perror("Fork failed!\n"); exit(1); break;} // error case
+                    case 0: {
+                        //child
+                        //printf("[%s]\n", cwd);
+                        //printf("Child process running...\n");
+                        //execute command
+                        execvp(command2[0], command2);
+                        //printf("exec failed: %s\n", strerror(errno));
+                        perror("CHILD: exec failed.\n");
+                        exit(2); break;
                     }
-                    else if (WIFSIGNALED(childExitMethod) != 0)
-                    {
-                        termSignal = WTERMSIG(childExitMethod);
-                        exitORsig = 1;
+                    default: {
+                        //parent
+                        dup2(saved_stdout, 1);
+                        printf("bg process spawned with PID of: [%d]\n", spawnPid);
                     }
-                    //printf("Done, child(%d) terminated.\n", actualPid);
+                }   
+            } // end of background exec() handling
+
+            else // foreground exec() handling
+            {
+                spawnPid = fork();
+                switch (spawnPid)
+                {
+                    case -1: { perror("Fork failed!\n"); exit(1); break;} // error case
+                    case 0: {
+                        //child
+                        //printf("[%s]\n", cwd);
+                        //printf("Child process running...\n");
+                        //execute command
+                        execvp(command2[0], command2);
+                        //printf("exec failed: %s\n", strerror(errno));
+                        perror("CHILD: exec failed.\n");
+                        exit(2); break;
+                    }
+                    default: {
+                        //parent
+                        //printf("child(%d) spawned, waiting...\n", spawnPid);
+                        //wait for child to exit
+                        pid_t actualPid = waitpid(spawnPid, &childExitMethod, 0);
+                        //check exit method for child, and set vars as appropriate
+                        if (WIFEXITED(childExitMethod) != 0)
+                        {
+                            exitStatus = WEXITSTATUS(childExitMethod);
+                            if (exitStatus == 2)
+                            {
+                                exitStatus = 1;
+                            }
+                            exitORsig = 0;
+                        }
+                        else if (WIFSIGNALED(childExitMethod) != 0)
+                        {
+                            termSignal = WTERMSIG(childExitMethod);
+                            exitORsig = 1;
+                        }
+                        //printf("Done, child(%d) terminated.\n", actualPid);
+                    }
                 }
             }
-        }
+        } // end of exec() block
 
+
+
+
+
+        // CLEANUP //
+        //printf("I survived until cleanup!\n");
+        //check if any bg processes have completed
+        
+        
         //reset file descriptors
         if(passin)
         {
-            dup2(saved_stdin, 0);
+            int err;
+            err = dup2(saved_stdin, 0);
             close(saved_stdin);
+            if (err == -1)
+            {
+                printf("Could not open file for stdin redirection.\n");
+                exitStatus = 1;
+            }
         }
         if(passout)
         {
-            dup2(saved_stdout, 1);
+            int err;
+            err = dup2(saved_stdout, 1);
             close(saved_stdout);
+            if (err == -1)
+            {
+                printf("Could not open file for stdout redirection.\n");
+                exitStatus = 1;
+            }
+        }
+        if(bac && !passin)
+        {
+            int err;
+            err = dup2(saved_stdin, 0);
+            close(saved_stdin);
+            if (err == -1)
+            {
+                printf("Could not save stdin!\n");
+                exitStatus = 1;
+            }
+        }
+        if(bac && !passout)
+        {
+            int err;
+            err = dup2(saved_stdout, 1);
+            close(saved_stdout);
+            if (err == -1)
+            {
+                printf("Could not save stdout!\n");
+                exitStatus = 1;
+            }
         }
         //reset command array
         for(i = 0; i < 518; i++)
