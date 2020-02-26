@@ -152,7 +152,7 @@ main()
             //in redir
             if(strcmp(output_tok, "<") == 0)
             {
-                printf("caught a <.\n");
+                //printf("caught a <.\n");
                 passin = 1;
                 index_in = i;
                 //file to get data from will be index_in + 1.
@@ -160,7 +160,7 @@ main()
             //out redir
             if(strcmp(output_tok, ">") == 0)
             {
-                printf("caught a >.\n");
+                //printf("caught a >.\n");
                 passout = 1;
                 index_out = i;
             }
@@ -187,7 +187,9 @@ main()
                 command2[j] = (char *)malloc(sizeof(str));
                 memset(command[i], '\0', sizeof(str));
                 strcpy(command[i], str);
-                //printf("$$ detected, now: [%d]\n", command[i]);
+                memset(command2[j], '\0', sizeof(str));
+                strcpy(command2[j], str);
+                //printf("$$ detected, now: [%s]\n", command2[j]);
             }
             //free token var
             free(output_tok);
