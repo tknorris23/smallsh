@@ -41,7 +41,8 @@ main()
     int end = 0;
     int i;
     int j;
-    char input[2048];
+    char *input;
+    input = (char *)malloc(2048);
     char *command[518];
     char *command2[518];
     int argc1;
@@ -115,10 +116,11 @@ main()
         
         memset(input, 0, sizeof(input));
         fgets(input, 2048, stdin);
-        input[strcspn(input, "\n")] = 0; //removes \n from end of input
-        char *p = strchr(input, '\n');
-        if (p) *p = 0;
-
+        if(strcmp(input, "\n") != 0)
+        {
+            input[strcspn(input, "\n")] = 0; //removes \n from end of input
+        }
+        
 
         //Tokenizes input by spaces and puts into command array
         
@@ -243,14 +245,19 @@ main()
             shstatus(exitStatus, termSignal, exitORsig);
         }
         //check for nothing
-        else if (strcmp(command[0], "") == 0)
+        else if (command[0] == NULL)
         {
+            printf("saw nothing!\n");
             //do nothing
         }
         //check for comments
         else if (command[0][0] == '#')
         {
             // do nothing
+        }
+        else if (command[0][0] == '\n')
+        {
+            //do nothing
         }
 
 
@@ -393,7 +400,6 @@ main()
                 }
             }
         } // end of exec() block
-
 
 
 
