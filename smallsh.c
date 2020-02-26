@@ -50,6 +50,7 @@ main()
     argc1 = 0;
     argc2 = 0;
     char *p;
+    p = (char *)malloc(2048);
     int bgPID[50];
     int bgnum = 0;
     int amper_index = -1;
@@ -121,10 +122,8 @@ main()
             input[strcspn(input, "\n")] = 0; //removes \n from end of input
         }
         
-
         //Tokenizes input by spaces and puts into command array
-        
-        p = (char *) malloc(2048);
+        memset(p, 0, sizeof(p));
         strcpy(p, input);
         char *tok = NULL;
         i = 0;
@@ -225,10 +224,8 @@ main()
             //if an input is used, set pth to be sent to shcd
             if (command[1] != NULL)
             {
-                printf("about to set pth\n");
                 pth = (char *) malloc(sizeof(command[1]));
                 strcpy(pth, command[1]);
-                printf("copied input: [%s]\n", pth);
             }
             //if it's a HOME call, set pth to "-1"
             else
@@ -239,7 +236,7 @@ main()
             //call shcd
             shcd(&cwd, pth, PATH);
             //reset pth
-            strcpy(pth, "");
+            memset(pth, 0, sizeof(pth));
         }
         //check for status
         else if (strcmp(command[0], "status") == 0)
@@ -249,7 +246,6 @@ main()
         //check for nothing
         else if (command[0] == NULL)
         {
-            printf("saw nothing!\n");
             //do nothing
         }
         //check for comments
@@ -459,11 +455,17 @@ main()
         //reset command array
         for(i = 0; i < 518; i++)
         {
-            free(command[i]);
-            argc1 = 0;
-            free(command2[i]);
-            argc2 = 0;
+            if (command[i] != NULL)
+            {
+                free(command[i]);
+            }
+            if (command2[i] != NULL)
+            {
+                free(command2[i]);
+            }
         }
+        argc1 = 0;
+        argc2 = 0;
         //reset other prompt vars
         passin = 0;
         passout = 0;
@@ -475,62 +477,38 @@ main()
 //"cd" built-in command function
 void shcd(char** cwd, char* input, const char* PATH)
 {
-    //this function sucks ass and leads to so many memory issues because it's all string bs
-    //it's gonna be rewritten before wednesday :)
-    printf("cd called!\n");
-    printf("cwd is: [%s]\n", *cwd);
-    printf("input is: [%s]\n", input);
-    printf("PATH is: [%s]\n", PATH);
+    //var to grab cwd
+    char buf[100];
 
+    //If a path is being sent from input
     if (strcmp(input, "-1") != 0)
     {
-        //create relative path
-        char *pathname;
-        pathname = (char *)malloc(sizeof(*cwd) + sizeof(input) + 1);
-        memset(pathname, '\0', sizeof(pathname));
-        strcpy(pathname, *cwd);
-        strcat(pathname, "/");
-        strcat(pathname, input);
-        printf("relative pathname: '%s'\n", pathname);
-
-        //test for absolute path
+        //Try to open directory
+        //opendir() and chdir() support relative paths!
         DIR *abs;
         abs = opendir(input);
-        if (abs)
+        if (abs != NULL)
         {
-            printf("absolute path found.\n");
-            *cwd = (char *)malloc(sizeof(input));
-            memset(*cwd, '\0', sizeof(input));
-            strcpy(*cwd, input);
-            chdir(*cwd);
+            //change directory and set cwd
+            chdir(input);
+            getcwd(buf, sizeof(buf));
+            *cwd = (char *)malloc(sizeof(buf));
+            strcpy(*cwd, buf);
+            // how tf do we grab the cwd now
             printf("cwd changed to: '%s'\n", *cwd);
         }
+        //if directory doesn't exist, throw error
         else if (ENOENT == errno)
         {
-            printf("absolute path not found.\n");
+            printf("path not found.\n");
         }
+        //close directory stream
         closedir(abs);
-        DIR *rel;
-        rel = opendir(pathname);
-        if (rel)
-        {
-            printf("relative path found.\n");
-            *cwd = (char *)malloc(sizeof(pathname));
-            memset(*cwd, '\0', sizeof(pathname));
-            strcpy(*cwd, pathname);
-            chdir(*cwd);
-            printf("cwd changed to: '%s'\n", *cwd);
-        }
-        else if (ENOENT == errno)
-        {
-            printf("relative path not found.\n");
-        }
-
     }
-    
+    //If there was no input:
     else if (strcmp(input, "-1") == 0)
     {
-        printf("null call\n");
+        //change cwd to PATH and set chdir()
         *cwd = (char *)malloc(sizeof(PATH));
         memset(*cwd, '\0', sizeof(PATH));
         strcpy(*cwd, PATH);
