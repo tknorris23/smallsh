@@ -13,7 +13,6 @@ void shexit()
 {
     printf("exit called!\n");
     exit(0);
-    // TODO: Kill all child processes before exiting!
 }
 
 
@@ -34,8 +33,6 @@ main()
     size_t size;
     size = 1024;
     getcwd(cwd, size);
-    //printf("cwd gotten is: %s\n", cwd);
-
 
     //looping vars
     int end = 0;
@@ -76,14 +73,11 @@ main()
     //while loop for shell prompt
     while(end == 0)
     {
-        //printf("the loop begins!\n");
         //make sure command arrays are empty with NULLS
         for(i = 0; i < 518; i++)
         {
             command[i] = NULL;
-            //memset(command[i], '\0', sizeof(command[i]));
             command2[i] = NULL;
-            //memset(command2[i], '\0', sizeof(command2[i]));
         }
         //check for terminated children
         int tempPID;
@@ -103,14 +97,9 @@ main()
 
 
 
-
-
-
-
         // THE PROMPT //
         //flush stdout before printing prompt
         fflush(stdout);
-
 
         //prints colon then gets input from stdin
         printf(":");
@@ -151,7 +140,6 @@ main()
             //in redir
             if(strcmp(output_tok, "<") == 0)
             {
-                //printf("caught a <.\n");
                 passin = 1;
                 index_in = i;
                 //file to get data from will be index_in + 1.
@@ -159,7 +147,6 @@ main()
             //out redir
             if(strcmp(output_tok, ">") == 0)
             {
-                //printf("caught a >.\n");
                 passout = 1;
                 index_out = i;
             }
@@ -188,7 +175,6 @@ main()
                 strcpy(command[i], str);
                 memset(command2[j], '\0', sizeof(str));
                 strcpy(command2[j], str);
-                //printf("$$ detected, now: [%s]\n", command2[j]);
             }
             //free token var
             free(output_tok);
@@ -197,12 +183,9 @@ main()
             j++;
         }
         //check if a caught ampersand was the last command
-        //printf("amper_index: [%d]\n", amper_index);
-        //printf("i: [%d]\n", i);
         if (amper_index == i - 1)
         {
             bac = 1;
-            //printf("BACKGROUND PROCESS ENGAGED\n");
         }
         //reset vars
         i = 0;
@@ -258,19 +241,9 @@ main()
             //do nothing
         }
 
-
-
-
-
-
-
-
-
-
         //exec() commands
         else
         {
-            //printf("command2[0] is: %s\n", command2[0]);
             //check for redirects
             if(passin)
             {
@@ -296,7 +269,6 @@ main()
                 fdout = open(command[index_out+1], O_WRONLY);
                 //set stdout to send to file
                 result = dup2(fdout, 1);
-                //printf("result of dup2 = [%d]\n", result);
                 close(fdout);
                 result = 0;
             }
@@ -341,11 +313,8 @@ main()
                     case -1: { perror("Fork failed!\n"); exit(1); break;} // error case
                     case 0: {
                         //child
-                        //printf("[%s]\n", cwd);
-                        //printf("Child process running...\n");
                         //execute command
                         execvp(command2[0], command2);
-                        //printf("exec failed: %s\n", strerror(errno));
                         perror("CHILD: exec failed.\n");
                         exit(2); break;
                     }
@@ -365,17 +334,13 @@ main()
                     case -1: { perror("Fork failed!\n"); exit(1); break;} // error case
                     case 0: {
                         //child
-                        //printf("[%s]\n", cwd);
-                        //printf("Child process running...\n");
                         //execute command
                         execvp(command2[0], command2);
-                        //printf("exec failed: %s\n", strerror(errno));
                         perror("CHILD: exec failed.\n");
                         exit(2); break;
                     }
                     default: {
                         //parent
-                        //printf("child(%d) spawned, waiting...\n", spawnPid);
                         //wait for child to exit
                         pid_t actualPid = waitpid(spawnPid, &childExitMethod, 0);
                         //check exit method for child, and set vars as appropriate
@@ -393,20 +358,13 @@ main()
                             termSignal = WTERMSIG(childExitMethod);
                             exitORsig = 1;
                         }
-                        //printf("Done, child(%d) terminated.\n", actualPid);
                     }
                 }
             }
         } // end of exec() block
 
 
-
-
         // CLEANUP //
-        //printf("I survived until cleanup!\n");
-        //check if any bg processes have completed
-        
-        
         //reset file descriptors
         if(passin)
         {
@@ -494,8 +452,6 @@ void shcd(char** cwd, char* input, const char* PATH)
             getcwd(buf, sizeof(buf));
             *cwd = (char *)malloc(sizeof(buf));
             strcpy(*cwd, buf);
-            // how tf do we grab the cwd now
-            printf("cwd changed to: '%s'\n", *cwd);
         }
         //if directory doesn't exist, throw error
         else if (ENOENT == errno)
@@ -513,7 +469,6 @@ void shcd(char** cwd, char* input, const char* PATH)
         memset(*cwd, '\0', sizeof(PATH));
         strcpy(*cwd, PATH);
         chdir(*cwd);
-        printf("cwd changed to: '%s'\n", *cwd);
     }
 }
 
