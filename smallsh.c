@@ -21,15 +21,14 @@
 //"exit" built-in command function
 void shexit()
 {
-    printf("exit called!\n");
     exit(0);
 }
 
 
-//"cd" built-in command function
+//"cd" built-in command function prototype
 void shcd(char** cwd, char* input, const char* PATH);
 
-//"status" built-in command function
+//"status" built-in command function prototype
 void shstatus(int exit, int sig, int exitORsig);
 
 main()
@@ -197,9 +196,10 @@ main()
         {
             bac = 1;
         }
-        //reset vars
+        //reset looping vars
         i = 0;
         j = 0;
+        //make sure that the end of the command arrays are NULL terminated
         command[argc1] = NULL;
         command2[argc2] = NULL;
 
@@ -255,6 +255,7 @@ main()
         else
         {
             //check for redirects
+            //stdin redirect
             if(passin)
             {
                 //make vars for function use
@@ -269,6 +270,7 @@ main()
                 close(fdin);
                 result = 0;
             }
+            //stdout redirect
             if(passout)
             {
                 int fdout;
@@ -285,6 +287,7 @@ main()
 
 
             //fork process
+            //If command is being run in background mode:
             if (bac)
             {
                 //redirect stdin and stdout to /dev/null if not already set
@@ -314,6 +317,7 @@ main()
                     close(fdout);
                     result = 0;
                 }
+                //Fork process
                 spawnPid = fork();
                 //grab PID and put in bg process array
                 bgPID[bgnum] = spawnPid;
@@ -330,6 +334,7 @@ main()
                     }
                     default: {
                         //parent
+                        //save stdout and print PID of bg process
                         dup2(saved_stdout, 1);
                         printf("bg process spawned with PID of: [%d]\n", spawnPid);
                     }
@@ -379,8 +384,10 @@ main()
         if(passin)
         {
             int err;
+            //Set stdin back to saved file descriptor
             err = dup2(saved_stdin, 0);
             close(saved_stdin);
+            //if error print message
             if (err == -1)
             {
                 printf("Could not open file for stdin redirection.\n");
@@ -390,14 +397,17 @@ main()
         if(passout)
         {
             int err;
+            //Set stdout back to saved file descriptor
             err = dup2(saved_stdout, 1);
             close(saved_stdout);
+            //if error print message
             if (err == -1)
             {
                 printf("Could not open file for stdout redirection.\n");
                 exitStatus = 1;
             }
         }
+        //If command was run in background and there was no redirect, save stdin from /dev/null
         if(bac && !passin)
         {
             int err;
@@ -405,10 +415,10 @@ main()
             close(saved_stdin);
             if (err == -1)
             {
-                printf("Could not save stdin!\n");
                 exitStatus = 1;
             }
         }
+        //If no stdout redirect, save stdout from /dev/null
         if(bac && !passout)
         {
             int err;
@@ -416,7 +426,6 @@ main()
             close(saved_stdout);
             if (err == -1)
             {
-                printf("Could not save stdout!\n");
                 exitStatus = 1;
             }
         }
