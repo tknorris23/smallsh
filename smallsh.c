@@ -8,6 +8,16 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 
+////////////////////////////////////////////////////////////////
+//
+//  Thomas Kelly Norris
+//  CS344 Operating Systems Winter 2020 Oregon State University
+//  February 26th, 2020
+//  Program 3 - smallsh
+//  This program is a very limited scope shell for UNIX.
+//
+/////////////////////////////////////////////////////////////////
+
 //"exit" built-in command function
 void shexit()
 {
